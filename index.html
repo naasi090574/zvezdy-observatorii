@@ -106,21 +106,21 @@ function moveStar(star, from, to, duration, fade = false) {
 async function playAnimation() {
   while (true) {
     const rect = stage.getBoundingClientRect();
-    const radius = Math.min(rect.width, rect.height) * 0.145;
+    const radius = Math.min(rect.width, rect.height) * 0.36;
     const centerY = -rect.height * 0.015;
 
     const starts = stars.map((_, i) => {
-      const topRow = [-0.38, -0.19, 0, 0.19, 0.38];
-      const bottomRow = [-0.285, -0.095, 0.095, 0.285];
-      const x = i < 5 ? topRow[i] : bottomRow[i - 5];
-      const y = i < 5 ? 0.855 : 0.94;
+  const topRow = [-.38, -.19, 0, .19, .38];
+  const bottomRow = [-.285, -.095, .095, .285];
+  const x = i < 5 ? topRow[i] : bottomRow[i - 5];
+  const y = i < 5 ? .80 : .88;
 
-      return [
-        x * rect.width,
-        (y - .5) * rect.height,
-        .25
-      ];
-    });
+  return [
+    x * rect.width,
+    (y - .5) * rect.height,
+    .25
+  ];
+});
 
     stars.forEach((star, i) => {
       star.classList.add("twinkle");
