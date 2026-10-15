@@ -1,1 +1,206 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Звёзды обсерватории</title>
+<style>
+* { box-sizing: border-box; }
 
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #07173f;
+}
+
+body {
+  display: grid;
+  place-items: center;
+}
+
+#stage {
+  position: relative;
+  width: min(100vw, 177.684vh);
+  height: min(100vh, 56.279vw);
+  overflow: hidden;
+  container-type: inline-size;
+  background: #07173f url("background.png") center / 100% 100% no-repeat;
+}
+
+.star {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5cqw;
+  height: 5cqw;
+  object-fit: contain;
+  filter: drop-shadow(0 0 1cqw #ffdb55)
+          drop-shadow(0 0 2cqw #ffae24);
+  will-change: transform, opacity;
+}
+
+.twinkle {
+  animation: shine 1.8s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%, 100% {
+    filter: drop-shadow(0 0 .6cqw #ffd94d);
+  }
+  50% {
+    filter: drop-shadow(0 0 2cqw #fff4a2)
+            drop-shadow(0 0 3cqw #ffae24);
+  }
+}
+</style>
+</head>
+<body>
+<div id="stage"
+     aria-label="Звёзды мерцают, собираются в круг, вращаются и разлетаются">
+</div>
+
+<script>
+const stage = document.querySelector("#stage");
+
+const stars = Array.from({ length: 9 }, () => {
+  const star = new Image();
+  star.src = "star.png";
+  star.className = "star twinkle";
+  star.alt = "";
+  stage.appendChild(star);
+  return star;
+});
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const transformAt = (x, y, scale = 1) =>
+  `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${scale})`;
+
+function moveStar(star, from, to, duration, fade = false) {
+  return new Promise(resolve => {
+    const animation = star.animate(
+      [
+        { transform: transformAt(...from), opacity: 1 },
+        { transform: transformAt(...to), opacity: fade ? 0 : 1 }
+      ],
+      {
+        duration,
+        easing: fade
+          ? "cubic-bezier(.45,0,.9,.4)"
+          : "cubic-bezier(.2,.72,.24,1)",
+        fill: "forwards"
+      }
+    );
+
+    animation.onfinish = () => {
+      star.style.transform = getComputedStyle(star).transform;
+      star.style.opacity = getComputedStyle(star).opacity;
+      animation.cancel();
+      resolve();
+    };
+  });
+}
+
+async function playAnimation() {
+  while (true) {
+    const rect = stage.getBoundingClientRect();
+    const radius = Math.min(rect.width, rect.height) * 0.145;
+    const centerY = -rect.height * 0.015;
+
+    const starts = stars.map((_, i) => {
+      const topRow = [-0.38, -0.19, 0, 0.19, 0.38];
+      const bottomRow = [-0.285, -0.095, 0.095, 0.285];
+      const x = i < 5 ? topRow[i] : bottomRow[i - 5];
+      const y = i < 5 ? 0.855 : 0.94;
+
+      return [
+        x * rect.width,
+        (y - 0.5) * rect.height,
+        0.88
+      ];
+    });
+
+    stars.forEach((star, i) => {
+      star.classList.add("twinkle");
+      star.style.opacity = 1;
+      star.style.transform = transformAt(...starts[i]);
+    });
+
+    // Звёзды мерцают на месте.
+    await wait(2800);
+    stars.forEach(star => star.classList.remove("twinkle"));
+
+    const angles = stars.map((_, i) =>
+      -Math.PI / 2 + i * 2 * Math.PI / 9
+    );
+
+    // Слетаются в круг.
+    await Promise.all(stars.map((star, i) => {
+      const end = [
+        Math.cos(angles[i]) * radius,
+        centerY + Math.sin(angles[i]) * radius,
+        1.08
+      ];
+      return moveStar(star, starts[i], end, 1250);
+    }));
+
+    // Круг вращается.
+    await Promise.all(stars.map((star, i) => {
+      const frames = Array.from({ length: 91 }, (_, k) => {
+        const t = k / 90;
+        const angle = angles[i] + 2 * Math.PI * 2.25 * t;
+
+        return {
+          transform: transformAt(
+            Math.cos(angle) * radius,
+            centerY + Math.sin(angle) * radius,
+            1.08
+          ),
+          offset: t
+        };
+      });
+
+      return new Promise(resolve => {
+        const animation = star.animate(frames, {
+          duration: 4300,
+          easing: "linear",
+          fill: "forwards"
+        });
+
+        animation.onfinish = () => {
+          star.style.transform = getComputedStyle(star).transform;
+          animation.cancel();
+          resolve();
+        };
+      });
+    }));
+
+    // Разлетаются в разные стороны.
+    await Promise.all(stars.map((star, i) => {
+      const angle = angles[i] + 2 * Math.PI * 2.25;
+      const from = [
+        Math.cos(angle) * radius,
+        centerY + Math.sin(angle) * radius,
+        1.08
+      ];
+      const direction = angle + (i % 2 ? -0.48 : 0.48) + (i - 4) * 0.035;
+      const distance = Math.max(rect.width, rect.height) * 0.72;
+      const to = [
+        Math.cos(direction) * distance,
+        centerY + Math.sin(direction) * distance,
+        0.45
+      ];
+
+      return moveStar(star, from, to, 950, true);
+    }));
+
+    await wait(750);
+  }
+}
+
+playAnimation();
+</script>
+</body>
+</html>
